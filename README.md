@@ -1,0 +1,2 @@
+img_formula.py是强化学习
+test_train.py是监督学习
