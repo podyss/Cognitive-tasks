@@ -1,2 +1,2 @@
-img_formula.py是强化学习
-test_train.py是监督学习
+model/math/Chalkboard_Challege/train.py是强化学习
+model/math/Chalkboard_Challege/Supervised_Learning.py是监督学习
