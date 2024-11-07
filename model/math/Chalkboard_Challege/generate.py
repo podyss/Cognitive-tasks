@@ -11,7 +11,7 @@ def generate_expression(depth=2):
     operator = random.choice(operators)
     return f"({left_expr} {operator} {right_expr})"
 
-def generate_img():
+def generate():
     img = Image.new('RGB', (256, 64), color='white')
     draw = ImageDraw.Draw(img)
     text = generate_expression()

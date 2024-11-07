@@ -16,6 +16,10 @@ import PIL
 from torchvision import models,transforms
 from typing import List
 from random import choice
+from generate import generate
+import ultralytics
+from ultralytics.nn.modules.block import C2f, SPPF
+from ultralytics.nn.modules.conv import Conv
 
 
 class TensorboardCallback(BaseCallback):
@@ -28,9 +32,7 @@ class TensorboardCallback(BaseCallback):
             self.logger.record('reward', mean_reward)
             print(self.n_calls, 'reward: ',mean_reward)
         return True
-import ultralytics
-from ultralytics.nn.modules.block import C2f, SPPF
-from ultralytics.nn.modules.conv import Conv
+
 
 class CustomCombinedExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.spaces.Dict):
@@ -86,7 +88,7 @@ class Env(gym.Env):
                 "image": spaces.Box(-1, 1, [3,128,256], dtype=np.float32),
             },
         )
-        self.obs = self.get_obs()
+        self.get_obs()
         self.count = 0
         self.timelimit = timelimit
         
@@ -97,10 +99,8 @@ class Env(gym.Env):
         #     self.index[1] = self.index[0]
         # while self.get_ans() != y:
         #     self.index = np.random.randint(size=2,low=0,high=10)
-
-        from generate import generate_img
-        img1, self.text1 = generate_img()
-        img2, self.text2 = generate_img()
+        img1, text1 = generate()
+        img2, text2 = generate()
         def normalize(image):
             mean = np.mean(image)
             var = np.mean(np.square(image-mean))
@@ -111,23 +111,20 @@ class Env(gym.Env):
         img1 = np.array(img1,dtype=np.float32).transpose((2,0,1))
         img2 = np.array(img2,dtype=np.float32).transpose((2,0,1))
         img = np.concatenate((img1,img2),axis=1)
-        # self.obs = {"img1": img1, "img2": img2}
         self.obs = {"image":img}
-        return self.obs
-
-    def get_ans(self, ):
-        res1 = eval(self.text1)
-        res2 = eval(self.text2)
+        res1 = eval(text1)
+        res2 = eval(text2)
         if res1 == res2:
-            return 1
+            self.label = 1
         elif res1 < res2:
-            return 0
+            self.label = 0
         else:
-            return 2
+            self.label = 2
+        return self.obs
 
     def reset(self, seed=0):
         self.count = 0
-        self.obs = self.observation_space.sample()
+        self.obs = self.get_obs()
         info = {}
         return self.obs, info
 
@@ -136,7 +133,7 @@ class Env(gym.Env):
 
     def step(self, action):
         action = int(action.argmax())
-        if action==self.get_ans():
+        if action==self.label:
             reward = 0
         else:
             reward = -1
@@ -159,7 +156,7 @@ class Env(gym.Env):
                 action = 0
             else:
                 action = 2
-            if action == self.get_ans():
+            if action == self.label:
                 reward = 1
             else:
                 reward = 0
