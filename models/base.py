@@ -5,11 +5,12 @@ from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
 from stable_baselines3.common.evaluation import evaluate_policy
 
 class TensorboardCallback(BaseCallback):
-    def __init__(self, verbose=0):
+    def __init__(self, verbose=0, lim=1000):
         super(TensorboardCallback, self).__init__(verbose)
+        self.lim = lim
 
     def _on_step(self) -> bool:
-        if self.n_calls % 1000 == 0:
+        if self.n_calls % self.lim == 0:
             mean_reward, std_reward = evaluate_policy(self.model, self.model.env, n_eval_episodes=10)
             self.logger.record('reward', mean_reward)
             print(self.n_calls, 'reward: ',mean_reward)
