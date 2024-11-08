@@ -90,23 +90,18 @@ class Dataset_num(Dataset):
 def train():
     train_dataset = Dataset_num(args.data_len)
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
-    val_dataset = Dataset_num(args.data_len)
-    val_dataloader = DataLoader(dataset=val_dataset, batch_size=args.batch_size, shuffle=True)
 
     model = Net().to(args.device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)  # , eps=1e-8)
 
     train_epochs_loss = []
-    valid_epochs_loss = []
     train_acc = []
-    val_acc = []
 
     for epoch in range(args.epochs):
         model.train()
         train_epoch_loss = []
         acc, nums = 0, 0
-        # =========================train=======================
         for idx, (label, inputs) in enumerate(train_dataloader):
             inputs = inputs.to(args.device)
             label = label.to(args.device)
@@ -126,28 +121,6 @@ def train():
         writer.add_scalar('reward/classify_reward', 10 * acc / nums - 10, epoch)
 
         print("epoch = {}, train acc = {:.3f}%, loss = {}".format(epoch, 100 * acc / nums, np.average(train_epoch_loss)))
-        # =========================val=========================
-        if epoch % 10 != 0:
-            continue
-        with torch.no_grad():
-            model.eval()
-            val_epoch_loss = []
-            acc, nums = 0, 0
-
-            for idx, (label, inputs) in enumerate(val_dataloader):
-                inputs = inputs.to(args.device)
-                label = label.to(args.device)
-                outputs = model(inputs)
-                loss = criterion(outputs, label)
-                val_epoch_loss.append(loss.item())
-
-                acc += sum(outputs.max(axis=1)[1] == label).cpu()
-                nums += label.size()[0]
-
-            valid_epochs_loss.append(np.average(val_epoch_loss))
-            val_acc.append(100 * acc / nums)
-
-            print("epoch = {}, valid acc = {:.2f}%, loss = {}".format(epoch, 100 * acc / nums, np.average(val_epoch_loss)))
 
     writer.close()
 

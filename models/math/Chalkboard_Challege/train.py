@@ -1,41 +1,21 @@
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
-import gymnasium as gym
 from gymnasium import spaces
-from gymnasium.spaces import Discrete, Box
 from stable_baselines3 import SAC, PPO, TD3, A2C
-from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 import torch
 import torch.nn as nn
 import numpy as np
-import os
-from PIL import Image
-import PIL
-from torchvision import models,transforms
-from typing import List
-from random import choice
 from generate import generate
-import ultralytics
 from ultralytics.nn.modules.block import C2f, SPPF
 from ultralytics.nn.modules.conv import Conv
-
-
-class TensorboardCallback(BaseCallback):
-    def __init__(self, verbose=0):
-        super(TensorboardCallback, self).__init__(verbose)
-
-    def _on_step(self) -> bool:
-        if self.n_calls % 1000 == 0:
-            mean_reward, std_reward = evaluate_policy(self.model, self.model.env, n_eval_episodes=10)
-            self.logger.record('reward', mean_reward)
-            print(self.n_calls, 'reward: ',mean_reward)
-        return True
+import sys
+sys.path.insert(0, sys.path[0]+"/../../../")
+from models import BaseEnv, TensorboardCallback
 
 
 class CustomCombinedExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: gym.spaces.Dict):
+    def __init__(self, observation_space: spaces.Dict):
         super().__init__(observation_space, features_dim=1)
         extractors = {} 
         total_concat_size = 0
@@ -80,25 +60,18 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
             encoded_tensor_list.append(extractor(observations[key]))
         return torch.cat(encoded_tensor_list, dim=1)
 
-class Env(gym.Env):
+
+class Env(BaseEnv):
     def __init__(self, timelimit=10):
-        self.action_space = Box(low=0, high=1, shape=(3,), dtype=np.float32)
-        self.observation_space = spaces.Dict(
+        action_space = spaces.Box(low=0, high=1, shape=(3,), dtype=np.float32)
+        observation_space = spaces.Dict(
             spaces={
                 "image": spaces.Box(-1, 1, [3,128,256], dtype=np.float32),
             },
         )
-        self.get_obs()
-        self.count = 0
-        self.timelimit = timelimit
-        
-    def get_obs(self):
-        # y = np.random.randint(3)
-        # self.index = np.random.randint(size=2,low=0,high=10)
-        # if y == 1:
-        #     self.index[1] = self.index[0]
-        # while self.get_ans() != y:
-        #     self.index = np.random.randint(size=2,low=0,high=10)
+        super().__init__(action_space,observation_space,timelimit)
+
+    def generate(self):
         img1, text1 = generate()
         img2, text2 = generate()
         def normalize(image):
@@ -111,57 +84,16 @@ class Env(gym.Env):
         img1 = np.array(img1,dtype=np.float32).transpose((2,0,1))
         img2 = np.array(img2,dtype=np.float32).transpose((2,0,1))
         img = np.concatenate((img1,img2),axis=1)
-        self.obs = {"image":img}
+        obs = {"image":img}
         res1 = eval(text1)
         res2 = eval(text2)
         if res1 == res2:
-            self.label = 1
+            label = 1
         elif res1 < res2:
-            self.label = 0
+            label = 0
         else:
-            self.label = 2
-        return self.obs
-
-    def reset(self, seed=0):
-        self.count = 0
-        self.obs = self.get_obs()
-        info = {}
-        return self.obs, info
-
-    def close(self):
-        pass
-
-    def step(self, action):
-        action = int(action.argmax())
-        if action==self.label:
-            reward = 0
-        else:
-            reward = -1
-        self.count += 1
-        done = 0
-        if self.count == self.timelimit:
-            done = 1
-        truncated = 0
-        info = {}
-        obs = self.get_obs()
-        return obs, reward, done, truncated, info
-    
-    def test(self):
-        for x in self.obs:
-            print(x)
-            inp = input()
-            if inp == '=':
-                action = 1
-            elif inp == '<':
-                action = 0
-            else:
-                action = 2
-            if action == self.label:
-                reward = 1
-            else:
-                reward = 0
-            self.count += 1
-            print('reward: ',reward)
+            label = 2
+        return obs, label
 
 env = Env()
 # model = SAC('MultiInputPolicy', env, tensorboard_log='logs/', buffer_size=int(1e4),
